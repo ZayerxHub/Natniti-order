@@ -28,7 +28,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-600 text-sm font-medium">ຈຳນວນອໍເດີທັງໝົດ</p>
-                        <p class="text-3xl font-bold text-gray-900" id="totalOrders">1,247</p>
+                        <p class="text-3xl font-bold text-gray-900" id="totalOrders">0</p>
                     </div>
                     <div class="bg-red-100 p-3 rounded-full">
                         <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,7 +42,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-600 text-sm font-medium">ອໍເດີມື້ນີ້</p>
-                        <p class="text-3xl font-bold text-gray-900" id="todayOrders">23</p>
+                        <p class="text-3xl font-bold text-gray-900" id="todayOrders">0</p>
                         <p class="text-xs text-gray-500" id="currentDate"></p>
                     </div>
                     <div class="bg-green-100 p-3 rounded-full">
@@ -57,7 +57,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-600 text-sm font-medium">ອໍເດີເດືອນນີ້</p>
-                        <p class="text-3xl font-bold text-gray-900" id="monthOrders">456</p>
+                        <p class="text-3xl font-bold text-gray-900" id="monthOrders">0</p>
                     </div>
                     <div class="bg-blue-100 p-3 rounded-full">
                         <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,14 +68,17 @@
             </div>
         </div>
 
-        <!-- Add Order Button -->
-        <div class="mb-6">
-            <button onclick="addOrder()" class="bg-red-700 hover:bg-red-800 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition duration-200 transform hover:scale-105">
-                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                ເພີ່ມອໍເດີ
-            </button>
+        <!-- Add Order Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">ເພີ່ມອໍເດີໃໝ່</h3>
+            <div class="flex justify-center">
+                <button onclick="addOrder()" class="bg-red-700 hover:bg-red-800 text-white font-bold py-4 px-12 rounded-lg shadow-lg transition duration-200 transform hover:scale-105">
+                    <svg class="w-6 h-6 inline-block mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    ເພີ່ມອໍເດີ
+                </button>
+            </div>
         </div>
 
         <!-- Success Message -->
@@ -157,7 +160,7 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbzlZbHS-btdNk3RdwYX-l4yCCaPJGYxUYk7lIwUXa31ZSoVVOCIqYgLRwGaOfQaiWODrw/exec"; // ใส่ลิงก์ Google Script ของคุณ
+        const API_URL = "https://script.google.com/macros/s/AKfycbzlZbHS-btdNk3RdwYX-l4yCCaPJGYxUYk7lIwUXa31ZSoVVOCIqYgLRwGaOfQaiWODrw/exec";
 
         let orders = [];
 
@@ -172,10 +175,8 @@
                 updateCharts();
             } catch (error) {
                 console.error('Error loading orders:', error);
-                // ใช้ข้อมูลตัวอย่างถ้าไม่สามารถโหลดจาก Google Sheet ได้
-                orders = [
-                    
-                ];
+                // เริ่มต้นด้วยข้อมูลว่าง
+                orders = [];
                 populateOrdersTable();
                 updateStats();
                 updateCharts();
@@ -218,34 +219,32 @@
 
         // เพิ่มออเดอร์ใหม่
         async function addOrder() {
+            const now = new Date();
+            
+            // ส่งไป Google Sheet ก่อน
             try {
-                let res = await fetch(API_URL, {
+                const response = await fetch(API_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: "add" })
+                    body: JSON.stringify({ 
+                        action: "add"
+                    })
                 });
-                let result = await res.json();
+                
+                const result = await response.json();
                 if (result.status === "success") {
+                    console.log('Order added to Google Sheet successfully');
+                    // โหลดข้อมูลใหม่จาก Google Sheet
+                    await loadOrders();
                     showSuccessMessage();
-                    loadOrders();
                 }
             } catch (error) {
-                console.error('Error adding order:', error);
-                // ถ้าไม่สามารถเชื่อมต่อ Google Sheet ได้ ให้เพิ่มแบบเดิม
-                const now = new Date();
-                const newOrder = {
-                    id: `ORD${String(orders.length + 1).padStart(3, '0')}`,
-                    date: now.toISOString().split('T')[0],
-                    time: now.toTimeString().slice(0, 5)
-                };
-                
-                orders.unshift(newOrder);
-                populateOrdersTable();
-                updateStats();
-                updateCharts();
-                showSuccessMessage();
+                console.log('Google Sheet sync failed:', error);
+                alert('ເກີດຂໍ້ຜິດພາດໃນການເພີ່ມອໍເດີ');
             }
         }
+
+
 
         // Show success message
         function showSuccessMessage() {
@@ -452,5 +451,5 @@
             initCharts();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98157b4e73ed108e',t:'MTc1ODI0NzE0NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'981595dd201fcde2',t:'MTc1ODI0ODIzMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
